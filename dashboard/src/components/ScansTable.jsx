@@ -6,6 +6,19 @@ const riskColor = {
   LOW: '#51cf66',
 };
 
+function formatTime(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
+}
+
 export default function ScansTable({ scans, loading }) {
   return (
     <div
@@ -35,6 +48,7 @@ export default function ScansTable({ scans, loading }) {
               <th style={{ padding: '12px 20px', textAlign: 'left' }}>URL</th>
               <th style={{ padding: '12px', textAlign: 'center' }}>Risk</th>
               <th style={{ padding: '12px', textAlign: 'center' }}>Score</th>
+              <th style={{ padding: '12px', textAlign: 'center' }}>Time</th>
               <th style={{ padding: '12px 20px', textAlign: 'left' }}>Reason</th>
             </tr>
           </thead>
@@ -42,7 +56,7 @@ export default function ScansTable({ scans, loading }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#8ea0b8' }}>
+                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#8ea0b8' }}>
                   Loading scan history...
                 </td>
               </tr>
@@ -50,7 +64,7 @@ export default function ScansTable({ scans, loading }) {
 
             {!loading && scans.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#8ea0b8' }}>
+                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#8ea0b8' }}>
                   No scans yet. Submit a scan to populate the dashboard.
                 </td>
               </tr>
@@ -100,6 +114,9 @@ export default function ScansTable({ scans, loading }) {
                     }}
                   >
                     {scan.score}
+                  </td>
+                  <td style={{ padding: '12px', textAlign: 'center', color: '#8ea0b8' }}>
+                    {formatTime(scan.timestamp)}
                   </td>
                   <td style={{ padding: '12px 20px', color: '#a9b3c4', fontSize: '12px' }}>
                     {scan.reason}

@@ -142,6 +142,9 @@ async function initVertex() {
 }
 
 function buildPrompt(url, content) {
+  const safeUrl = (url || '').trim() || 'No URL provided';
+  const safeContent = (content || '').trim();
+
   return `You are a cybersecurity expert specializing in Social Engineering and Phishing detection.
 Analyze the given webpage text content and URL for phishing or scam patterns.
 Look specifically for:
@@ -160,10 +163,10 @@ Format:
   "reason": "One line explanation"
 }
 
-URL: ${url}
+URL: ${safeUrl}
 
 Page Text Content (first 2000 chars):
-${content.slice(0, 2000)}`;
+${safeContent.slice(0, 2000) || 'No page text provided.'}`;
 }
 
 function parseModelJson(rawText) {
@@ -356,17 +359,19 @@ app.get('/config-status', (req, res) => {
 });
 
 app.post('/analyze', async (req, res) => {
-  const { url, content } = req.body || {};
+  const { url = '', content = '' } = req.body || {};
+  const normalizedUrl = url.trim();
+  const normalizedContent = content.trim();
 
-  if (!url || !content) {
-    return res.status(400).json({ error: 'url and content are required' });
+  if (!normalizedUrl && !normalizedContent) {
+    return res.status(400).json({ error: 'Either url or content is required' });
   }
 
   try {
-    const analysis = await analyzeContent(url, content);
+    const analysis = await analyzeContent(normalizedUrl, normalizedContent);
 
     await saveScan({
-      url,
+      url: normalizedUrl || 'manual-text-input',
       riskLevel: analysis.riskLevel,
       score: analysis.score,
       patterns: analysis.patterns || [],

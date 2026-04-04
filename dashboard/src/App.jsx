@@ -57,11 +57,98 @@ const styles = {
     color: '#ffd8a8',
     fontSize: '14px',
   },
+  toolbar: {
+    display: 'grid',
+    gridTemplateColumns: '1.5fr 1fr auto auto',
+    gap: '12px',
+    marginBottom: '18px',
+    alignItems: 'center',
+  },
+  input: {
+    width: '100%',
+    background: 'rgba(7, 17, 31, 0.88)',
+    color: '#f7f4ea',
+    border: '1px solid rgba(120, 142, 168, 0.22)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    fontSize: '13px',
+  },
+  select: {
+    width: '100%',
+    background: 'rgba(7, 17, 31, 0.88)',
+    color: '#f7f4ea',
+    border: '1px solid rgba(120, 142, 168, 0.22)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    fontSize: '13px',
+  },
+  button: {
+    border: 'none',
+    borderRadius: '14px',
+    padding: '12px 16px',
+    fontSize: '13px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    color: '#08111d',
+    background: 'linear-gradient(90deg, #f9c74f, #f59e0b)',
+  },
+  secondaryButton: {
+    borderRadius: '14px',
+    padding: '12px 16px',
+    fontSize: '13px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    color: '#f7f4ea',
+    border: '1px solid rgba(120, 142, 168, 0.22)',
+    background: 'rgba(7, 17, 31, 0.88)',
+  },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
     gap: '16px',
     marginBottom: '28px',
+  },
+  panel: {
+    background: 'rgba(7, 17, 31, 0.88)',
+    borderRadius: '18px',
+    border: '1px solid rgba(120, 142, 168, 0.2)',
+    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.22)',
+    padding: '20px',
+    marginBottom: '24px',
+  },
+  panelTitle: {
+    color: '#f9c74f',
+    fontWeight: 700,
+    marginBottom: '14px',
+  },
+  panelGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1.1fr 1.6fr auto',
+    gap: '12px',
+    alignItems: 'start',
+  },
+  textarea: {
+    minHeight: '120px',
+    resize: 'vertical',
+    width: '100%',
+    background: 'rgba(4, 12, 23, 0.9)',
+    color: '#f7f4ea',
+    border: '1px solid rgba(120, 142, 168, 0.22)',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    fontSize: '13px',
+  },
+  helper: {
+    color: '#8ea0b8',
+    fontSize: '12px',
+    marginTop: '8px',
+  },
+  scanResult: {
+    marginTop: '14px',
+    padding: '14px 16px',
+    borderRadius: '14px',
+    background: 'rgba(11, 24, 42, 0.8)',
+    border: '1px solid rgba(120, 142, 168, 0.18)',
   },
 };
 
@@ -78,6 +165,14 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [backendStatus, setBackendStatus] = useState(null);
+  const [query, setQuery] = useState('');
+  const [riskFilter, setRiskFilter] = useState('ALL');
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [manualUrl, setManualUrl] = useState('');
+  const [manualContent, setManualContent] = useState('');
+  const [manualResult, setManualResult] = useState(null);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -108,6 +203,7 @@ export default function App() {
           low: payload.low ?? 0,
           recentScans: payload.recentScans ?? [],
         });
+        setLastUpdated(new Date().toLocaleTimeString());
 
         if (statusResponse.ok) {
           setBackendStatus(await statusResponse.json());
@@ -129,7 +225,7 @@ export default function App() {
 
     loadStats();
     return () => controller.abort();
-  }, []);
+  }, [refreshTick]);
 
   const statusText = useMemo(() => {
     if (loading) {
@@ -139,10 +235,62 @@ export default function App() {
     return error ? 'Offline fallback mode' : `Connected to ${API_BASE_URL}`;
   }, [error, loading]);
 
+  const filteredScans = useMemo(() => {
+    return stats.recentScans.filter((scan) => {
+      const matchesRisk = riskFilter === 'ALL' || scan.riskLevel === riskFilter;
+      const haystack = `${scan.url} ${scan.reason} ${(scan.patterns || []).join(' ')}`.toLowerCase();
+      const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
+      return matchesRisk && matchesQuery;
+    });
+  }, [query, riskFilter, stats.recentScans]);
+
   const cloudWarning =
     backendStatus && !backendStatus.liveScanningReady
       ? 'Live cloud scanning is not ready yet. Add Firebase service account credentials and a GCP project ID for Vertex AI.'
       : '';
+
+  function resetDashboardState() {
+    setQuery('');
+    setRiskFilter('ALL');
+    setManualUrl('');
+    setManualContent('');
+    setManualResult(null);
+    setRefreshTick((value) => value + 1);
+  }
+
+  async function runManualScan() {
+    if (!manualUrl.trim() && !manualContent.trim()) {
+      setManualResult({ error: 'Enter a URL, some text, or both to test a scan.' });
+      return;
+    }
+
+    try {
+      setManualLoading(true);
+      setManualResult(null);
+
+      const response = await fetch(`${API_BASE_URL}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: manualUrl.trim(),
+          content: manualContent.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.details || payload.error || `Request failed with ${response.status}`);
+      }
+
+      const result = await response.json();
+      setManualResult(result);
+      setRefreshTick((value) => value + 1);
+    } catch (scanError) {
+      setManualResult({ error: scanError.message });
+    } finally {
+      setManualLoading(false);
+    }
+  }
 
   return (
     <div style={styles.app}>
@@ -162,14 +310,114 @@ export default function App() {
         {error && <div style={styles.banner}>{error}</div>}
         {!error && cloudWarning && <div style={styles.banner}>{cloudWarning}</div>}
 
-        <div style={styles.grid}>
-          <StatsCard label="Total Scans" value={stats.total} color="#4dabf7" />
-          <StatsCard label="High Risk" value={stats.high} color="#ff6b6b" />
-          <StatsCard label="Medium Risk" value={stats.medium} color="#f6ad55" />
-          <StatsCard label="Safe" value={stats.low} color="#51cf66" />
+        <div style={styles.toolbar}>
+          <input
+            style={styles.input}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search URLs, reasons, or detected patterns"
+          />
+          <select
+            style={styles.select}
+            value={riskFilter}
+            onChange={(event) => setRiskFilter(event.target.value)}
+          >
+            <option value="ALL">All risk levels</option>
+            <option value="HIGH">High only</option>
+            <option value="MEDIUM">Medium only</option>
+            <option value="LOW">Safe only</option>
+          </select>
+          <button style={styles.secondaryButton} onClick={() => setRefreshTick((value) => value + 1)}>
+            Refresh
+          </button>
+          <button
+            style={styles.secondaryButton}
+            onClick={resetDashboardState}
+          >
+            Clear
+          </button>
         </div>
 
-        <ScansTable scans={stats.recentScans} loading={loading} />
+        <div style={styles.grid}>
+          <StatsCard
+            label="Total Scans"
+            value={stats.total}
+            color="#4dabf7"
+            active={riskFilter === 'ALL'}
+            onClick={() => setRiskFilter('ALL')}
+          />
+          <StatsCard
+            label="High Risk"
+            value={stats.high}
+            color="#ff6b6b"
+            active={riskFilter === 'HIGH'}
+            onClick={() => setRiskFilter('HIGH')}
+          />
+          <StatsCard
+            label="Medium Risk"
+            value={stats.medium}
+            color="#f6ad55"
+            active={riskFilter === 'MEDIUM'}
+            onClick={() => setRiskFilter('MEDIUM')}
+          />
+          <StatsCard
+            label="Safe"
+            value={stats.low}
+            color="#51cf66"
+            active={riskFilter === 'LOW'}
+            onClick={() => setRiskFilter('LOW')}
+          />
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>Quick Test Scan</div>
+          <div style={styles.panelGrid}>
+            <div>
+              <input
+                style={styles.input}
+                value={manualUrl}
+                onChange={(event) => setManualUrl(event.target.value)}
+                placeholder="https://example.com/login"
+              />
+              <div style={styles.helper}>Optional: paste a suspicious link to analyze only the URL.</div>
+            </div>
+
+            <div>
+              <textarea
+                style={styles.textarea}
+                value={manualContent}
+                onChange={(event) => setManualContent(event.target.value)}
+                placeholder="Paste suspicious page text or email content here..."
+              />
+              <div style={styles.helper}>Optional: paste page text or email content to analyze text only.</div>
+            </div>
+
+            <button style={styles.button} onClick={runManualScan} disabled={manualLoading}>
+              {manualLoading ? 'Scanning...' : 'Analyze'}
+            </button>
+          </div>
+
+          {manualResult && (
+            <div style={styles.scanResult}>
+              {'error' in manualResult ? (
+                <div style={{ color: '#ff9a9a' }}>{manualResult.error}</div>
+              ) : (
+                <>
+                  <div style={{ color: '#f7f4ea', fontWeight: 700, marginBottom: '6px' }}>
+                    {manualResult.riskLevel} risk with score {manualResult.score}/100
+                  </div>
+                  <div style={{ color: '#a9b3c4', fontSize: '13px' }}>{manualResult.reason}</div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ color: '#8ea0b8', fontSize: '12px', marginBottom: '10px' }}>
+          Showing {filteredScans.length} of {stats.recentScans.length} recent scans. Last updated {lastUpdated || 'just now'}.
+        </div>
+
+        <ScansTable scans={filteredScans} loading={loading} />
       </div>
     </div>
   );

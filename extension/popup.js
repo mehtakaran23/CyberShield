@@ -15,7 +15,21 @@ async function loadPopup() {
 }
 
 function bindActions() {
-  document.getElementById('scan-now').addEventListener('click', rescanCurrentTab);
+  document.getElementById('scan-now').onclick = rescanCurrentTab;
+  document.getElementById('refresh-popup').onclick = async () => {
+    const button = document.getElementById('refresh-popup');
+    button.disabled = true;
+    button.textContent = 'Refreshing...';
+
+    try {
+      await refreshPanel();
+    } catch (error) {
+      setBackendStatus(`Unable to refresh popup data: ${error.message}`, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Refresh panel';
+    }
+  };
 }
 
 async function loadStats() {
@@ -57,24 +71,34 @@ async function loadHealth() {
 }
 
 async function loadCurrentTabScan() {
+  const activeTab = await getActiveTab();
   const stored = await chrome.storage.local.get(STORAGE_KEY);
   const result = stored[STORAGE_KEY];
   const statusLabel = document.getElementById('scan-status');
   const detail = document.getElementById('scan-detail');
   const patterns = document.getElementById('scan-patterns');
+  const host = document.getElementById('scan-host');
+  const time = document.getElementById('scan-time');
+  const activeUrl = activeTab?.url || '';
 
-  if (!result) {
+  host.textContent = activeUrl ? formatHost(activeUrl) : 'Waiting for page...';
+
+  if (!result || (activeUrl && result.url && result.url !== activeUrl)) {
     statusLabel.textContent = 'No scan yet';
     detail.textContent = 'Open a suspicious page or click "Scan current tab".';
-    patterns.textContent = '';
+    patterns.innerHTML = '';
+    time.textContent = 'No recent scan';
     applyRiskTone('IDLE');
     return;
   }
 
+  host.textContent = formatHost(result.url);
+  time.textContent = result.scannedAt ? formatRelativeTime(result.scannedAt) : 'Time unavailable';
+
   if (result.skipped) {
     statusLabel.textContent = 'Scan skipped';
     detail.textContent = result.reason;
-    patterns.textContent = '';
+    patterns.innerHTML = '';
     applyRiskTone('IDLE');
     return;
   }
@@ -82,14 +106,16 @@ async function loadCurrentTabScan() {
   if (result.error) {
     statusLabel.textContent = 'Scan failed';
     detail.textContent = result.error;
-    patterns.textContent = '';
+    patterns.innerHTML = '';
     applyRiskTone('HIGH');
     return;
   }
 
   statusLabel.textContent = `${result.riskLevel} risk (${result.score}/100)`;
   detail.textContent = result.reason;
-  patterns.textContent = (result.patterns || []).join(' • ');
+  patterns.innerHTML = (result.patterns || [])
+    .map((pattern) => `<span class="pattern-pill">${escapeHtml(pattern)}</span>`)
+    .join('');
   applyRiskTone(result.riskLevel);
 }
 
@@ -119,6 +145,28 @@ async function rescanCurrentTab() {
     button.disabled = false;
     button.textContent = 'Scan current tab';
   }
+}
+
+async function refreshPanel() {
+  const activeTab = await getActiveTab();
+
+  if (activeTab?.id && activeTab.url && /^https?:/i.test(activeTab.url)) {
+    try {
+      await ensureContentScript(activeTab);
+      const response = await chrome.tabs.sendMessage(activeTab.id, {
+        type: 'CYBERSHIELD_SCAN_PAGE',
+        force: false,
+      });
+
+      if (response?.ok && response.result) {
+        await chrome.storage.local.set({ [STORAGE_KEY]: response.result });
+      }
+    } catch (error) {
+      console.debug('CyberShield refresh could not rescan active tab:', error.message);
+    }
+  }
+
+  await Promise.all([loadStats(), loadCurrentTabScan(), loadHealth()]);
 }
 
 async function ensureContentScript(tab) {
@@ -174,13 +222,14 @@ async function analyzeCurrentTab(payload) {
   }
 
   const data = await response.json();
-  return {
+  const result = {
     ...data,
     url: payload.url,
     skipped: false,
     scannedAt: new Date().toISOString(),
     source: 'manual',
   };
+  return result;
 }
 
 async function renderResultInTab(tab) {
@@ -213,4 +262,47 @@ function applyRiskTone(riskLevel) {
   } else if (riskLevel === 'LOW') {
     chip.classList.add('scan-chip-low');
   }
+}
+
+function formatHost(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url || 'Unknown page';
+  }
+}
+
+function formatRelativeTime(isoTime) {
+  if (!isoTime) {
+    return 'Time unavailable';
+  }
+
+  const diffMs = Date.now() - new Date(isoTime).getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMinutes <= 0) {
+    return 'Just now';
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`;
+  }
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hr ago`;
+  }
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+}
+
+function escapeHtml(text = '') {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+async function getActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab || null;
 }

@@ -82,10 +82,28 @@
       color: #e5e7eb;
       margin-bottom: 8px;
     }
-    .scan-patterns {
-      font-size: 12px;
-      color: #9fb0c3;
-      line-height: 1.4;
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: #8ea0b8;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .patterns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .pattern-pill {
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+      background: rgba(148, 163, 184, 0.12);
+      color: #dbe4ef;
+      border: 1px solid rgba(148, 163, 184, 0.16);
     }
     .stats-grid {
       display: grid;
@@ -110,6 +128,12 @@
     .stat-high { color: #ff8b8b; }
     .stat-medium { color: #ffd089; }
     .stat-safe { color: #9df0a8; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
     button {
       width: 100%;
       border: none;
@@ -120,6 +144,11 @@
       cursor: pointer;
       background: linear-gradient(90deg, #f9c74f, #f59e0b);
       color: #111827;
+    }
+    .ghost-button {
+      background: rgba(148, 163, 184, 0.1);
+      color: #e5e7eb;
+      border: 1px solid rgba(148, 163, 184, 0.18);
     }
     button:disabled {
       opacity: 0.7;
@@ -138,11 +167,19 @@
 
   <div class="card">
     <div class="card-title">Current Tab</div>
+    <div class="meta-row">
+      <span id="scan-host">Waiting for page...</span>
+      <span id="scan-time">No recent scan</span>
+    </div>
     <div id="scan-chip" class="scan-chip">
       <span id="scan-status">No scan yet</span>
     </div>
     <div id="scan-detail" class="scan-detail">Open a suspicious page or click "Scan current tab".</div>
-    <div id="scan-patterns" class="scan-patterns"></div>
+    <div id="scan-patterns" class="patterns"></div>
+    <div class="toolbar">
+      <button id="scan-now">Scan current tab</button>
+      <button id="refresh-popup" class="ghost-button">Refresh panel</button>
+    </div>
   </div>
 
   <div class="card">
@@ -166,8 +203,6 @@
       </div>
     </div>
   </div>
-
-  <button id="scan-now">Scan current tab</button>
 
   <script src="popup.js"></script>
 </body>
