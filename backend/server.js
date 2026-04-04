@@ -18,8 +18,6 @@ const VERTEX_SERVICE_ACCOUNT =
   process.env.VERTEX_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
 const VERTEX_MODEL = process.env.VERTEX_MODEL || 'gemini-2.5-flash';
 const GCP_LOCATION = process.env.GCP_LOCATION || 'global';
-const VERTEX_USAGE_MODE = (process.env.VERTEX_USAGE_MODE || 'suspicious-only').trim().toLowerCase();
-const VERTEX_MIN_SCORE = Number(process.env.VERTEX_MIN_SCORE || 70);
 const VERTEX_MODEL_FALLBACKS = (process.env.VERTEX_MODEL_FALLBACKS || 'gemini-2.5-flash-lite')
   .split(',')
   .map((value) => value.trim())
@@ -305,17 +303,8 @@ function createFallbackAnalysis(url, content) {
 }
 
 async function analyzeContent(url, content) {
-  const fallbackAnalysis = createFallbackAnalysis(url, content);
-
-  if (!aiClient || VERTEX_USAGE_MODE === 'disabled') {
-    return fallbackAnalysis;
-  }
-
-  if (
-    VERTEX_USAGE_MODE === 'suspicious-only' &&
-    fallbackAnalysis.score < VERTEX_MIN_SCORE
-  ) {
-    return fallbackAnalysis;
+  if (!aiClient) {
+    return createFallbackAnalysis(url, content);
   }
 
   const candidateModels = [VERTEX_MODEL, ...VERTEX_MODEL_FALLBACKS];
@@ -329,8 +318,7 @@ async function analyzeContent(url, content) {
     }
   }
 
-  console.warn(`Vertex AI fallback triggered: ${lastError?.message || 'unknown error'}`);
-  return fallbackAnalysis;
+  throw lastError || new Error('No Vertex model could complete the request.');
 }
 
 async function saveScan(scan) {
@@ -414,8 +402,6 @@ app.get('/config-status', (req, res) => {
     vertexServiceAccountPath: getVertexServiceAccountPath() || null,
     vertexModel: VERTEX_MODEL,
     vertexModelFallbacks: VERTEX_MODEL_FALLBACKS,
-    vertexUsageMode: VERTEX_USAGE_MODE,
-    vertexMinScore: VERTEX_MIN_SCORE,
     gcpLocation: GCP_LOCATION,
     gcpProjectIdConfigured: Boolean(GCP_PROJECT_ID),
     ...getReadiness(),
