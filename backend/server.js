@@ -145,39 +145,45 @@ function buildPrompt(url, content) {
   const safeUrl = (url || '').trim() || 'No URL provided';
   const safeContent = (content || '').trim();
 
-  return `You are a cybersecurity expert specializing in modern phishing, scam, fraud, and social engineering detection.
-Analyze the given webpage text content and URL for malicious patterns seen in today's scams.
-Look specifically for:
-- FALSE URGENCY: countdowns, immediate action pressure, "account will be blocked", "payment failed", "respond now"
-- FEAR / PANIC TRIGGERS: threats, suspension, legal warnings, tax penalties, police/customs claims, device infected claims
-- AUTHORITY IMPERSONATION: fake bank, courier, government, telecom, tech support, HR, school, or brand impersonation
-- CREDENTIAL HARVESTING: requests for password, OTP, card number, CVV, PIN, Aadhaar, SSN, recovery phrase, API key
-- PAYMENT / WALLET FRAUD: UPI collect requests, QR scams, gift cards, crypto wallet drains, advance fee requests
-- INVESTMENT / JOB / TASK SCAMS: guaranteed returns, easy income, task completion rewards, fake recruiter or work-from-home traps
-- DELIVERY / KYC / ACCOUNT VERIFICATION BAIT: parcel holds, KYC update, refund claims, subscription renewal, invoice/payment link scams
-- REMOTE ACCESS / SUPPORT FRAUD: AnyDesk, TeamViewer, QuickSupport, "install this app", "share screen", "grant access"
-- DOMAIN AND LINK DECEPTION: lookalike domains, misspellings, excessive subdomains, shortened links, unrelated domains for a claimed brand
-- FORM RISK: hidden login/payment forms, suspicious submit labels, credential fields on a non-official or low-trust context
-- SOCIAL PROOF / SCARCITY MANIPULATION: limited seats, limited offer, many people claimed, fake testimonials, fake trust badges
-- SENSITIVE DATA COLLECTION: asking for PAN, bank details, identity proof, personal verification documents, or one-time codes
+  return `You are a cybersecurity AI specialized in detecting phishing, scam, fraud, and malicious websites.
 
-Be stricter when the page combines impersonation + urgency + credential or payment requests.
-Treat requests for OTP, CVV, PIN, recovery phrase, remote access installation, or wallet/payment transfer as high-risk signals.
-Consider both the page language and the URL structure.
+Analyze the URL and page content for real-world scam patterns.
 
-Respond with ONLY valid JSON. No extra text, no markdown, no backticks.
-Format:
+Focus on key signals:
+- Urgency or pressure ("act now", "account blocked")
+- Fear or threats (suspension, legal action)
+- Impersonation (bank, government, courier, tech support)
+- Sensitive data requests (OTP, password, PIN, CVV, card, API keys)
+- Payment scams (UPI, QR, crypto, fees)
+- Job or investment scams (easy money, guaranteed profit)
+- Remote access scams (AnyDesk, TeamViewer)
+- Suspicious domain patterns (misspelling, strange TLDs, shortened links)
+
+Be practical. Avoid overthinking.
+
+IMPORTANT:
+- Keep response concise
+- Do NOT explain step-by-step
+- Focus only on strongest indicators
+
+Return ONLY valid JSON:
 {
   "riskLevel": "LOW" or "MEDIUM" or "HIGH",
-  "score": <number 0-100>,
-  "patterns": ["pattern1", "pattern2"],
-  "reason": "One line explanation"
+  "score": number (0-100),
+  "patterns": ["max 3 short keywords"],
+  "reason": "max 20 words, clear explanation"
 }
+
+SCORING:
+- HIGH → strong scam signals (credentials/payment/impersonation + urgency)
+- MEDIUM → suspicious but unclear
+- LOW → mostly safe
 
 URL: ${safeUrl}
 
-Page Text Content (first 2000 chars):
-${safeContent.slice(0, 2000) || 'No page text provided.'}`;
+CONTENT:
+${safeContent.slice(0, 1000) || 'No content provided'}
+`;
 }
 
 function parseModelJson(rawText) {
@@ -189,6 +195,10 @@ async function tryGenerateWithModel(modelName, url, content) {
   const response = await aiClient.models.generateContent({
     model: modelName,
     contents: buildPrompt(url, content),
+    generationConfig: {
+    maxOutputTokens: 150,
+    temperature: 0.3,
+  },
   });
 
   if (!response.text) {
