@@ -145,14 +145,25 @@ function buildPrompt(url, content) {
   const safeUrl = (url || '').trim() || 'No URL provided';
   const safeContent = (content || '').trim();
 
-  return `You are a cybersecurity expert specializing in Social Engineering and Phishing detection.
-Analyze the given webpage text content and URL for phishing or scam patterns.
+  return `You are a cybersecurity expert specializing in modern phishing, scam, fraud, and social engineering detection.
+Analyze the given webpage text content and URL for malicious patterns seen in today's scams.
 Look specifically for:
-- FALSE URGENCY: "Your account will be deleted in 10 minutes"
-- FEAR: Threats, warnings, account suspension
-- AUTHORITY ABUSE: Fake bank, government, or tech support impersonation
-- GREED: Lottery wins, fake prizes, too-good-to-be-true offers
-- CREDENTIAL HARVESTING: Asking for OTP, password, card details on suspicious pages
+- FALSE URGENCY: countdowns, immediate action pressure, "account will be blocked", "payment failed", "respond now"
+- FEAR / PANIC TRIGGERS: threats, suspension, legal warnings, tax penalties, police/customs claims, device infected claims
+- AUTHORITY IMPERSONATION: fake bank, courier, government, telecom, tech support, HR, school, or brand impersonation
+- CREDENTIAL HARVESTING: requests for password, OTP, card number, CVV, PIN, Aadhaar, SSN, recovery phrase, API key
+- PAYMENT / WALLET FRAUD: UPI collect requests, QR scams, gift cards, crypto wallet drains, advance fee requests
+- INVESTMENT / JOB / TASK SCAMS: guaranteed returns, easy income, task completion rewards, fake recruiter or work-from-home traps
+- DELIVERY / KYC / ACCOUNT VERIFICATION BAIT: parcel holds, KYC update, refund claims, subscription renewal, invoice/payment link scams
+- REMOTE ACCESS / SUPPORT FRAUD: AnyDesk, TeamViewer, QuickSupport, "install this app", "share screen", "grant access"
+- DOMAIN AND LINK DECEPTION: lookalike domains, misspellings, excessive subdomains, shortened links, unrelated domains for a claimed brand
+- FORM RISK: hidden login/payment forms, suspicious submit labels, credential fields on a non-official or low-trust context
+- SOCIAL PROOF / SCARCITY MANIPULATION: limited seats, limited offer, many people claimed, fake testimonials, fake trust badges
+- SENSITIVE DATA COLLECTION: asking for PAN, bank details, identity proof, personal verification documents, or one-time codes
+
+Be stricter when the page combines impersonation + urgency + credential or payment requests.
+Treat requests for OTP, CVV, PIN, recovery phrase, remote access installation, or wallet/payment transfer as high-risk signals.
+Consider both the page language and the URL structure.
 
 Respond with ONLY valid JSON. No extra text, no markdown, no backticks.
 Format:
@@ -210,18 +221,33 @@ function createFallbackAnalysis(url, content) {
     },
     {
       name: 'authority abuse',
-      regex: /bank|government|microsoft support|apple support|tax department|customs/,
+      regex: /bank|government|microsoft support|apple support|tax department|customs|courier|hr team|support desk|upi help/,
       weight: 18,
     },
     {
       name: 'greed',
-      regex: /won|winner|lottery|prize|free gift|claim reward|bonus/,
+      regex: /won|winner|lottery|prize|free gift|claim reward|bonus|guaranteed profit|double your money|easy income/,
       weight: 18,
     },
     {
       name: 'credential harvesting',
-      regex: /otp|one[- ]time password|password|cvv|card number|login to continue|verify account/,
+      regex: /otp|one[- ]time password|password|cvv|card number|login to continue|verify account|pin|passcode|seed phrase|recovery phrase|api key/,
       weight: 28,
+    },
+    {
+      name: 'payment fraud',
+      regex: /upi|qr code|gift card|wallet|crypto|payment link|advance fee|processing fee|release fee|refund pending/,
+      weight: 24,
+    },
+    {
+      name: 'job or task scam',
+      regex: /task job|part time earning|work from home|daily income|commission task|recruiter|telegram job|resume selected/,
+      weight: 18,
+    },
+    {
+      name: 'remote access fraud',
+      regex: /anydesk|teamviewer|quicksupport|screen share|remote access|install support app/,
+      weight: 30,
     },
   ];
 
@@ -240,7 +266,10 @@ function createFallbackAnalysis(url, content) {
     normalizedUrl.includes('@') ||
     normalizedUrl.includes('login') ||
     normalizedUrl.includes('verify') ||
-    normalizedUrl.includes('secure')
+    normalizedUrl.includes('secure') ||
+    normalizedUrl.includes('update') ||
+    normalizedUrl.includes('wallet') ||
+    normalizedUrl.includes('pay')
   ) {
     score += 10;
   }
@@ -249,7 +278,9 @@ function createFallbackAnalysis(url, content) {
     normalizedUrl.includes('.ru') ||
     normalizedUrl.includes('.tk') ||
     normalizedUrl.includes('.top') ||
-    normalizedUrl.includes('.xyz')
+    normalizedUrl.includes('.xyz') ||
+    normalizedUrl.includes('bit.ly') ||
+    normalizedUrl.includes('tinyurl')
   ) {
     score += 8;
   }
