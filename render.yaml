@@ -8,8 +8,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
-      - key: PORT
-        value: 8080
       - key: GCP_PROJECT_ID
         sync: false
       - key: FIREBASE_SERVICE_ACCOUNT
@@ -25,9 +23,8 @@ services:
       - key: GCP_LOCATION
         sync: false
 
-  - type: web
+  - type: static_site
     name: cybershield-dashboard
-    env: static
     rootDir: dashboard
     buildCommand: npm install && npm run build
     publishPath: dist
