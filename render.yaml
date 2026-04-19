@@ -10,11 +10,7 @@ services:
         value: 20
       - key: GCP_PROJECT_ID
         sync: false
-      - key: FIREBASE_SERVICE_ACCOUNT
-        sync: false
-      - key: VERTEX_SERVICE_ACCOUNT
-        sync: false
-      - key: GOOGLE_APPLICATION_CREDENTIALS
+      - key: GOOGLE_CREDENTIALS_JSON
         sync: false
       - key: VERTEX_MODEL
         sync: false

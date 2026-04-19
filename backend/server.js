@@ -1,11 +1,21 @@
 import express from 'express';
 import cors from 'cors';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 
 loadEnvFile(path.resolve(process.cwd(), '.env'));
 
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+  try {
+    const tmpPath = path.resolve(process.cwd(), 'serviceAccount.json');
+    writeFileSync(tmpPath, process.env.GOOGLE_CREDENTIALS_JSON);
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath;
+    process.env.FIREBASE_SERVICE_ACCOUNT = tmpPath;
+  } catch (error) {
+    console.error('Failed to write GOOGLE_CREDENTIALS_JSON to file:', error.message);
+  }
+}
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
