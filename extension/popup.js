@@ -11,6 +11,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadPopup() {
   bindActions();
+  
+  const userId = await getUserId();
+  const syncEl = document.getElementById('sync-id');
+  if (syncEl) {
+    syncEl.textContent = userId;
+    syncEl.onclick = () => {
+      navigator.clipboard.writeText(userId);
+      syncEl.textContent = 'Copied!';
+      setTimeout(() => syncEl.textContent = userId, 2000);
+    };
+  }
+
   await Promise.all([loadStats(), loadCurrentTabScan(), loadHealth()]);
 }
 

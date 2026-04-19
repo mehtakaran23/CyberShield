@@ -194,6 +194,13 @@ function getDashboardUserId() {
   return userId;
 }
 
+function setDashboardUserId(newId) {
+  if (newId && newId.trim()) {
+    localStorage.setItem('cybershield_userId', newId.trim());
+    window.location.reload();
+  }
+}
+
 export default function App() {
   const [stats, setStats] = useState(emptyStats);
   const [loading, setLoading] = useState(true);
@@ -369,7 +376,7 @@ export default function App() {
             <div style={styles.title}>CyberShield Dashboard</div>
             <div style={styles.subtitle}>
               Monitor phishing scan activity, risk distribution, and recent findings from one
-              place.
+              place. <span style={{ color: '#f9c74f' }}>(Your ID: {getDashboardUserId()})</span>
             </div>
           </div>
 
@@ -378,6 +385,21 @@ export default function App() {
 
         {error && <div style={styles.banner}>{error}</div>}
         {!error && cloudWarning && <div style={styles.banner}>{cloudWarning}</div>}
+
+        <div style={{ ...styles.panel, display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '20px', padding: '14px 20px' }}>
+          <div style={{ fontSize: '13px', color: '#a9b3c4' }}>Want to see your extension scans?</div>
+          <input
+            id="sync-input"
+            style={{ ...styles.input, width: '200px', padding: '8px 12px' }}
+            placeholder="Paste Extension ID here"
+          />
+          <button
+            style={{ ...styles.secondaryButton, padding: '8px 14px' }}
+            onClick={() => setDashboardUserId(document.getElementById('sync-input').value)}
+          >
+            Sync
+          </button>
+        </div>
 
         <div style={styles.toolbar}>
           <input
