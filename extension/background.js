@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8080';
+importScripts('config.js');
 const ANALYZE_URL = `${API_BASE_URL}/analyze`;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
