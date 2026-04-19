@@ -34,7 +34,8 @@ function bindActions() {
 
 async function loadStats() {
   try {
-    const response = await fetch(STATS_URL);
+    const userId = await getUserId();
+    const response = await fetch(`${STATS_URL}?userId=${userId}`);
     if (!response.ok) {
       throw new Error(`Stats request failed with ${response.status}`);
     }
@@ -210,10 +211,11 @@ async function collectPagePayload(tabId) {
 }
 
 async function analyzeCurrentTab(payload) {
+  const userId = await getUserId();
   const response = await fetch(`${API_BASE_URL}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, userId }),
   });
 
   if (!response.ok) {

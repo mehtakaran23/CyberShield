@@ -177,6 +177,23 @@ const emptyStats = {
   recentScans: [],
 };
 
+function getDashboardUserId() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlUserId = urlParams.get('userId');
+  if (urlUserId) {
+    localStorage.setItem('cybershield_userId', urlUserId);
+    window.history.replaceState({}, '', window.location.pathname);
+    return urlUserId;
+  }
+  
+  let userId = localStorage.getItem('cybershield_userId');
+  if (!userId) {
+    userId = 'usr_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    localStorage.setItem('cybershield_userId', userId);
+  }
+  return userId;
+}
+
 export default function App() {
   const [stats, setStats] = useState(emptyStats);
   const [loading, setLoading] = useState(true);
@@ -200,8 +217,9 @@ export default function App() {
         setLoading(true);
         setError('');
 
+        const userId = getDashboardUserId();
         const [statsResponse, statusResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/stats`, {
+          fetch(`${API_BASE_URL}/stats?userId=${userId}`, {
             signal: controller.signal,
           }),
           fetch(`${API_BASE_URL}/config-status`, {
@@ -283,7 +301,8 @@ export default function App() {
 
     try {
       setClearing(true);
-      const response = await fetch(`${API_BASE_URL}/stats`, {
+      const userId = getDashboardUserId();
+      const response = await fetch(`${API_BASE_URL}/stats?userId=${userId}`, {
         method: 'DELETE',
       });
 
@@ -314,6 +333,7 @@ export default function App() {
       setManualLoading(true);
       setManualResult(null);
 
+      const userId = getDashboardUserId();
       const response = await fetch(`${API_BASE_URL}/analyze`, {
   method: "POST",   // 🔥 THIS LINE FIXES EVERYTHING
   headers: {
@@ -321,7 +341,8 @@ export default function App() {
   },
   body: JSON.stringify({
     url: manualUrl.trim(),
-    content: manualContent.trim()
+    content: manualContent.trim(),
+    userId
   })
 });
 
