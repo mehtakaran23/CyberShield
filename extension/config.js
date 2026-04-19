@@ -3,7 +3,7 @@
 var API_BASE_URL = 'https://cybershield-backend-mrr3.onrender.com';
 
 // TODO: Update this to your deployed Vercel URL
-var DASHBOARD_URL = 'http://localhost:5173';
+var DASHBOARD_URL = 'https://cyber-shield-eishe7tio-mehtakaran23s-projects.vercel.app';
 
 async function getUserId() {
   const data = await chrome.storage.local.get('userId');
