@@ -1,5 +1,4 @@
 
-const STATS_URL = `${API_BASE_URL}/stats`;
 const HEALTH_URL = `${API_BASE_URL}/health`;
 const STORAGE_KEY = 'cybershieldLastScan';
 
@@ -11,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadPopup() {
   bindActions();
-  await Promise.all([loadStats(), loadCurrentTabScan(), loadHealth()]);
+  await Promise.all([loadCurrentTabScan(), loadHealth()]);
 }
 
 function bindActions() {
@@ -30,27 +29,6 @@ function bindActions() {
       button.textContent = 'Refresh panel';
     }
   };
-}
-
-async function loadStats() {
-  try {
-    const response = await fetch(STATS_URL);
-    if (!response.ok) {
-      throw new Error(`Stats request failed with ${response.status}`);
-    }
-
-    const data = await response.json();
-    document.getElementById('total').textContent = data.total ?? 0;
-    document.getElementById('high').textContent = data.high ?? 0;
-    document.getElementById('medium').textContent = data.medium ?? 0;
-    document.getElementById('safe').textContent = data.low ?? 0;
-  } catch (error) {
-    document.getElementById('total').textContent = '-';
-    document.getElementById('high').textContent = '-';
-    document.getElementById('medium').textContent = '-';
-    document.getElementById('safe').textContent = '-';
-    setBackendStatus(`Backend offline: ${error.message}`, true);
-  }
 }
 
 async function loadHealth() {
@@ -138,7 +116,7 @@ async function rescanCurrentTab() {
     const result = await analyzeCurrentTab(pagePayload);
     await chrome.storage.local.set({ [STORAGE_KEY]: result });
     await renderResultInTab(tab);
-    await Promise.all([loadCurrentTabScan(), loadStats()]);
+    await Promise.all([loadCurrentTabScan()]);
   } catch (error) {
     setBackendStatus(`Manual scan failed: ${error.message}`, true);
   } finally {
@@ -166,7 +144,7 @@ async function refreshPanel() {
     }
   }
 
-  await Promise.all([loadStats(), loadCurrentTabScan(), loadHealth()]);
+  await Promise.all([loadCurrentTabScan(), loadHealth()]);
 }
 
 async function ensureContentScript(tab) {
