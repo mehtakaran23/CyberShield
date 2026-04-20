@@ -188,11 +188,10 @@ async function collectPagePayload(tabId) {
 }
 
 async function analyzeCurrentTab(payload) {
-  const userId = await getUserId();
   const response = await fetch(`${API_BASE_URL}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...payload, userId }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
